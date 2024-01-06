@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Pipeline with two stages and trigger configuration
+             Creates a pipeline with a source stage and a beta stage 
+             For the Source stage, CodePipeline uses a connection to a GitHub repository
+             The Beta stage builds those changes by using CodeBuild
+             The pipeline is configured to start with Git tags, using a trigger configuration 
+             that specifies the tags to exclude and include
+
+Parameters:
+  Description: Input parameters to this pipeline
+
+Mappings:
+  Description: Static variables; key-value
+
+Conditions:
+  Description: Controls for if and when resources are created or updated
+
+Transform:
+  Description: Specifies the versio of SAM to use
+
+Resources:
+  Description: AWS assets to create for this application
+
+  # CloudFormation user-defined resource identifier, an entity in CloudFormation template
+  Pipeline:
+
+    # Resource type that creates a CodePipeline pipeline that describes how software changes go through a release process
+    Type: AWS::CodePipeline::Pipeline
+
+    # CloudFormation-defined resource properties identifier
+    Properties:
+
+      # Pseudo parameter predefined by AWS CloudFormation. You don't declare them in your template. 
+      # Use them the same way as you would a parameter, as the argument to an intrinsic functions 
+      # in your templates to assign values to properties that are not available until runtime.
+      # Assigns the value of the AWS::StackName pseudo parameter as the value of the Name property 
+      # of this resource, pattern [A-Za-z0-9.@\-_]+ 
+      Name: !Sub "${AWS::StackName}-Code-Pipeline" 
+      
+      # Pipeline types, which differ in characteristics and price
+      # V1 standard pipeline, stage, and action-level parameters
+      # V2 v1 along with additional parameters for release safety and trigger configuration on Git tag  
+      PipelineType: V2
+
+      # The S3 bucket where artifacts for the pipeline are stored
+      # ( EncryptionKey, Type, Location)
+      ArtifactStore: 
+
+        # The type of the artifact store, such as S3
+        Type: S3
+
+        # The S3 bucket location used for storing the artifacts for a pipeline
+        # You can specify the name of an S3 bucket but not a folder in the bucket
+        # A folder to contain the pipeline artifacts is created for you based on the name of the pipeline
+        # You can use any S3 bucket in the same AWS Region as the pipeline to store your pipeline artifacts
+        # [a-zA-Z0-9\-\.]+
+        Location: codepipeline-eu-central-1-111111111111
+      
+      # Array of mapping of artifactStore objects and their corresponding AWS Region
+      ArtifactStores: []
+
+      # Array of the input of a DisableStageTransition action  
+      DisableInboundStageTransitions: []
+
+      # Indicates whether to rerun the CodePipeline pipeline after you update it
+      # Allowed literals TRUE 't' 'true' 'y' 'yes' '1', FALSE 'f' 'false' 'n' 'no' '0', NULL
+      RestartExecutionOnUpdate: true
+
+      # The Amazon Resource Name (ARN) for CodePipeline to use to either perform actions with no actionRoleArn, 
+      # or to use to assume roles for actions with an actionRoleArn arn:aws(-[\w]+)*:iam::[0-9]{12}:role/.*  
+      RoleArn: 'arn:aws:iam::111111111111:role/AWS-CodePipeline-Service'
+
+      # Represents information about a stage and its definition  
+      # Array of StageDeclaration (Name, Actions, Blockers)
+      Stages: 
+        
+        # The name of the pipeline stage, A-Za-z0-9.@\-_]+, cloudformation.resource-codepipeline.stage.property.MYNAME
+        - Name: cf.res-cdpip.stage.prop-Source
+
+          # The actions included in a stage
+          # Array of ActionDeclaration represents information about an action declaration
+          # Array of ActionDeclaration (ActionTypeId, Configuration, InputArtifacts, OutputArtifacts, Name, Namespace, Region, RoleArn, RunOrder)
+          # For the Source stage, CodePipeline uses a connection to a GitHub repository 
+          Actions:
+
+            # Represents information about an action type
+            ActionTypeId: 
+
+              # A category defines what kind of action can be taken in the stage, and constrains the provider type for the action
+              # Valid categories are limited to Source, Build, Test, Deploy, Invoke, Approval
+              Category: Source
+
+              # The creator of the action being called
+              # There are three valid values for the Owner field in the action category section within your pipeline structure
+              # AWS, ThirdParty, and Custom
+              Owner: AWS
+
+              # A string that describes the action version
+              Version: '1'
+
+              # The provider of the service being called by the action
+              # Valid providers are determined by the action category
+              # For example, an action in the Deploy category type might have a provider of CodeDeploy, which would be specified as CodeDeploy
+              Provider: CodeStarSourceConnection
+            
+            # The action's configuration key-value pairs that specify input values for an action
+            # Configuration details appropriate to the provider type
+            Configuration:
+              BranchName: main
+              ConnectionArn: >-
+                arn:aws:codestar-connections:eu-central-1:111111111111:connection/8f1795a8-62c7-4444-9bbf-b7bcc1f75b01  
+              FullRepositoryId: myservice/myrepo
+
+            # The name or ID of the artifact consumed by the action, such as a test or build artifact
+            # Array of InputArtifact represents information about an artifact to be worked on, such as a test or build artifact
+            # Array of InputArtifact (Name)  
+            InputArtifacts: []
+
+            # The name or ID of the result of the action declaration, such as a test or build artifact
+            # Array of OutputArtifact, represents information about the output of an action
+            # Array of OutputArtifact (Name)
+            OutputArtifacts: 
+              # The name of the output of an artifact, such as "My App"
+              # The output artifact name must exactly match the input artifact declared for a downstream action
+              # Output artifact names must be unique within a pipeline
+              - Name: SourceOutput
+
+            #  
+            Name: SourceAction
+            Namespace: ''
+            Region: ''
+            RoleArn: ''
+            RunOrder: 1
+
+        # The name of the pipeline stage, A-Za-z0-9.@\-_]+, cloudformation.resource-codepipeline.stage.property.MYNAME
+        - Name: Beta
+          
+          Actions:
+            - Name: BetaAction
+
+              # The name or ID of the artifact consumed by the action, such as a test or build artifact
+              # Array of InputArtifact represents information about an artifact to be worked on, such as a test or build artifact 
+              # Array of InputArtifact (Name) 
+              InputArtifacts:
+                # The name of the artifact to be worked on (for example, "My App") 
+                # Artifacts are the files that are worked on by actions in the pipeline
+                # The input artifact of an action must exactly match the output artifact declared in a preceding action
+                - Name: SourceOutput
+
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: Sample
+                EnvironmentVariables: >-
+                  [{"name":"var1","value":"#{variables.var1}","type":"PLAINTEXT"}]
+              RunOrder: 1
+      
+      # Specifies the tags applied to the pipeline
+      # A tag is a key-value pair that is used to manage the resource
+      # Array of Tag (key: value)
+      Tags:
+      - Key: "Pipeline Resource Tag Key1"
+        Value: "Pipeline Resource Tag Value1"
+      - Key: "Pipeline Resource Tag Key1"
+        Value: "Pipeline Resource Tag Value1"
+
+      # The trigger configuration specifying a type of event, such as Git tags, that starts the pipeline
+      # Array of PipelineTriggerDeclaration represents information about the specified trigger configuration, 
+      # such as the filter criteria and the source stage for the action that contains the trigger
+      # This is only supported for the CodeStarSourceConnection action type
+      # Array of PipelineTriggerDeclaration (ProviderType, GitConfiguration)
+      Triggers: 
+
+          # The source provider for the event, such as connections configured for a repository with Git tags, 
+          # for the specified trigger configuration         
+        - ProviderType: CodeStarSourceConnection
+
+          # Provides the filter criteria and the source stage for the repository event that starts the pipeline, such as Git tags
+          # GitConfiguration, a type of trigger configuration for Git-based source actions
+          # You can specify the Git configuration trigger type for all third-party Git-based source actions that are supported by 
+          # the CodeStarSourceConnection action type
+          # GitConfiguration (Push, SourceActionName)
+          GitConfiguration:
+
+            # The field where the repository event that will start the pipeline, such as pushing Git tags, is specified with details
+            # Git tags is the only supported event type
+            # Array of GitPushFilter, the event criteria that specify when a specified repository event will start the pipeline for the 
+            # specified trigger configuration, such as the lists of Git tags to include and exclude
+            # Array of GitPushFilter (Tags)
+            Push:
+
+              # The field that contains the details for the Git tags trigger configuration
+              # GitTagFilterCriteria, the Git tags specified as filter criteria for whether a Git tag repository event will start the pipeline
+              # GitTagFilterCriteria (Excludes, Includes)
+              - Tags:
+
+                  # The list of patterns of Git tags that, when pushed, are to be excluded from starting the pipeline
+                  # Array of String
+                  Excludes:
+                    - test*
+                    - fix*
+
+                  # The list of patterns of Git tags that, when pushed, are to be included as criteria that starts the pipeline
+                  # Array of String
+                  Includes:
+                    - release*
+                    - prod*
+
+            # The name of the pipeline source action where the trigger configuration, such as Git tags, is specified
+            # The trigger configuration will start the pipeline upon the specified change only
+            SourceActionName: SourceAction
+
+      # A list that defines the pipeline variables for a pipeline resource
+      # Variable names values must match [A-Za-z0-9@\-_]+
+      # Array of VariableDeclaration, a variable declared at the pipeline level
+      # Array of VariableDeclaration (DefaultValue, Description, Name)
+      Variables: 
+          # The name of a pipeline-level variable
+        - Name: var1
+          # The value of a pipeline-level variable
+          DefaultValue: val1
+          # The description of a pipeline-level variable. It's used to add additional context about the variable, and not being used at time when pipeline executes
+          Description: Variable Value description
+
+Outputs:
+  Description: Values of custom resources created by this template
+
+

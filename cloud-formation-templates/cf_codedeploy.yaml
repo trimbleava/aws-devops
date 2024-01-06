@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create a CodePipeline with CloudFormation for ngp_md_ec2-cf.yaml stack.
+             We'll need to prepare the EC2 instance so that we can deploy our app to it. 
+             We'll create an EC2 instance role and a CodeDeploy trust role, install the CodeDeploy agent, 
+             and tag the instance or instance we want to deploy to.
+             In the CloudFormation template (ngp_md_ec2-cf.yaml) that creates your EC2 instance, 
+             create the following new resources. 
+             cf_codedeploy.yaml 
+Resources:
+  
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ec2.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      Path: /
+
+  InstanceRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: InstanceRole
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - autoscaling:Describe*
+              - cloudformation:Describe*
+              - cloudformation:GetTemplate
+              - s3:Get*
+            Resource: '*'
+      Roles:
+        - !Ref 'InstanceRole'
+
+  InstanceRoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'InstanceRole'
+
+  # These resources create an instance profile to pass an IAM role to an EC2 instance.
+  # This allows the EC2 instance to do things like get the CodeDeploy agent from S3.
+  # Next, we'll add the IamInstanceProfile property to the EC2 instance:
+
+  WebAppInstance:
+    Properties:
+    # ...
+      IamInstanceProfile: !Ref 'InstanceRoleInstanceProfile'
+    # Then, we'll add the UserData key, which allows us to pass user data to the EC2 instance to perform automated
+    # configuration tasks and run scripts after the instance starts up. Any scripts in user data are run when you launch the instance. 
+    # User data is limited to 16 KB. You must provide base64-encoded text. For more information, see Fn::Base64.
+    # If you are using !Sub you need to wrap your variables with ${} instead of using !Ref
+    Fn::Base64 !Sub:
+      UserData: !Base64
+        Fn::Join:
+        - ''
+        - - "#!/bin/bash -xe\n"
+          - 'sudo apt-get update -y
+
+            '
+          - 'sudo apt-get -y install python3-pip
+
+            '
+          - 'sudo apt-get -y install ruby-full
+          
+            '
+          - 'sudo apt-get -y install wget
+          
+            '
+
+          - 'sudo apt-get -y install aws-cli
+          
+            '
+          - 'cd /home/ubuntu
+          
+            '
+          - 'wget https://bucket-name.s3.region-identifier.amazonaws.com/latest/install
+          
+            '
+          - 'chmod +x ./install
+          
+            '
+          - 'sudo ./install auto > /tmp/logfile
+          
+            '
+          - 'mkdir -p /opt/aws/
+
+            '
+          - 'sudo pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+
+            '
+          - 'sudo ln -s /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup
+
+            '
+          - "/usr/local/bin/cfn-init -v "
+          - "         --stack "
+          - Ref: AWS::StackName
+          - "         --resource EC2Instance "
+          - "         --configsets full_install "
+          - "         --region "
+          - Ref: AWS::Region
+          - "\n"
+          - "/usr/local/bin/cfn-signal -e $? "
+          - "         --stack "
+          - Ref: AWS::StackName
+          - "         --resource EC2Instance "
+          - "         --region "
+          - Ref: AWS::Region
+          - "\n"

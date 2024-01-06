@@ -1,0 +1,2 @@
+# You can pass a file path to Cloudformation deploy --parameter-overrides
+# aws cloudformation deploy --template-file template.yml --stack-name my-stack --parameter-overrides file://path/to_parameter_file

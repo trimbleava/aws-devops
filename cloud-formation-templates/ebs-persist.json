@@ -1,0 +1,12 @@
+[
+    {
+    "DeviceName": "/dev/sda1",
+    "Ebs": {
+      "DeleteOnTermination": false
+      }
+    }
+]
+
+# currently only cli or json file can change this property
+# To run: aws ec2 modify-instance-attribute --instance-id i-a3ef245 --block-device-mappings /path/to/file.json
+# aws ec2 modify-instance-attribute --instance-id i-a3ef245 --block-device-mappings "[{\"DeviceName\": \"/dev/sda\",\"Ebs\":{\"DeleteOnTermination\":false}}]"

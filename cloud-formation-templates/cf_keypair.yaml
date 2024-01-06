@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: The private key is saved to AWS Systems Manager Parameter Store 
+             The parameter name has the following format /ec2/keypair/key_pair_id
+
+Resources:
+  NewKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyFormat: pem
+      KeyName: my-key-pair
+      KeyType: rsa
+      PublicKeyMaterial: String (import existing keypair)
+  Ec2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-02b92c281a4d3dc79
+      KeyName: !Ref NewKeyPair
+
+
+
+Using cli:
+aws ec2 create-key-pair \
+    --key-name my-key-pair \  (public key)
+    --key-type rsa \
+    --key-format pem \
+    --query "KeyMaterial" \   (print private key material to output)
+    --output text > my-key-pair.pem
+    chmod 400 my-key-pair.pem
+
+$ aws ec2 describe-key-pairs --filters Name=key-name,Values=my-key-pair --query KeyPairs[*].KeyPairId --output text
+$ key-05abb699beEXAMPLE
+$ aws ssm get-parameter --name /ec2/keypair/key-05abb699beEXAMPLE --with-decryption --query Parameter.Value --output text > my-key-pair.pem

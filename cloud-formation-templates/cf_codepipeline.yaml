@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: CodePipeline for a multi-tenant django aplication release process stages 
+             continuous integration (code, build, test),
+             continuous delivery (code, build, test, provision, eye-deploy, monitor),
+             continuous deployment (code, build, test, provision, auto-deploy, monitor)
+
+Parameters:
+  Description: Input parameters to this pipeline
+
+Mappings:
+  Description: Static variables; key-value
+
+Conditions:
+  Description: Controls for if and when resources are created or updated
+
+Transform:
+  Description: Specifies the versio of SAM to use
+
+Resources:
+  Description: AWS assets to create for this application
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore: 
+        # The S3 bucket where artifacts for the pipeline are stored.
+        ArtifactStore
+      ArtifactStores: 
+        # Array of mapping of artifactStore objects and their corresponding AWS Region
+        - ArtifactStoreMap
+      DisableInboundStageTransitions: 
+        # Array of the input of a DisableStageTransition action
+        - StageTransition
+      Name: String
+        # Pipeline name 
+      PipelineType: String
+        # V1 standard pipeline, stage, and action-level parameters
+        # V2 v1 along with additional parameters for release safety and trigger configuration on Git tag
+      RestartExecutionOnUpdate: Boolean
+        # Indicates whether to rerun the CodePipeline pipeline after you update it
+      RoleArn: String
+        # The Amazon Resource Name (ARN) for CodePipeline to use to either perform actions with no actionRoleArn, 
+        # or to use to assume roles for actions with an actionRoleArn arn:aws(-[\w]+)*:iam::[0-9]{12}:role/.*
+      Stages: 
+        # Array of information about a stage and its definition
+        - StageDeclaration
+      Tags: 
+        # Array of the tags applied to the pipeline
+        - Tag
+      Triggers: 
+        # Array of trigger configuration specifying a type of event, such as Git tags, that starts the pipeline
+        # If specified, the default change detection for repository and branch commits is disabled
+        - PipelineTriggerDeclaration
+      Variables: 
+        # Array of pipeline variables for a pipeline resource. Must match [A-Za-z0-9@\-_]
+        - VariableDeclaration
+
+Outputs:
+  Description: Values of custom resources created by this template
+
+

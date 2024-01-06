@@ -1,0 +1,203 @@
+# This example deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
+# which uses continuous integration to run any time changes are pushed to the code commit repository.
+# The templates can be expanded to create multiple CodeBuild jobs or add additional environments to the CodePipeline stages.
+# This example contains two CloudFormation templates (cf_codebuild_3stg.yml, cf_codepipeline_3stg.yaml)
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  This template must be deployed first as the cf_codepipeline_3stg.yaml has dependencies on the output of this template. 
+  This template deploys the following resources
+    An S3 storage account for holding build artifacts
+    App-build CodeBuild project for running scripts and commands to build the application
+    App-deploy CodeBuild Project for running scripts and commands to deploy the application
+    Required IAM roles for the codebuild to create logs in cloudwatch and s3, create objects in s3, and create reports
+
+Parameters:
+  DockerImage:
+    Type: String
+    Default: aws/codebuild/standard:6.0
+    Description: Docker image to use for the build phase
+
+Resources:
+  
+  CodeCommitRepo:
+    # Creates a new, empty repository
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      # The name of the new repository to be created. Name must be unique across the calling AWS account,
+      # The suffix .git is prohibited
+      RepositoryName: !Sub "${AWS::StackName}-repo"
+      # A comment or description about the new repository, a must HTML-encode (How?)
+      RepositoryDescription: !Sub "This is a repository for the ${AWS::StackName} project."
+  
+  PipelineS3Bucket:
+    # Creates an Amazon S3 bucket in the same AWS Region where you create the AWS CloudFormation stack
+    # You can only delete empty buckets
+    Type: AWS::S3::Bucket
+    Properties:
+      # A name for the bucket. If you don't specify a name, AWS CloudFormation generates a unique ID and uses that ID for the bucket name.
+      # ^[a-z0-9][a-z0-9//.//-]*[a-z0-9]$
+      BucketName: !Sub "${AWS::StackName}-bucket"
+
+  CodeBuildRole:
+    # Creates a new role for your AWS account. In this case, for the codebuild to create logs in cloudwatch and s3, create objects in s3,...
+    # AWS Identity and Access Management (IAM) and AWS Security Token Service (STS) have quotas that limit the size of objects.
+    Type: AWS::IAM::Role
+    Properties:
+      # Json based trust policy that is associated with this role.
+      # Trust policies define which entities can assume the role. You can associate only one trust policy with a role.
+      # (Version, Id, Statement, Sid, Effect, Principal, NotPrincipal, Action, NotAction, Resource, NotResource, Condition, Variables and tags, Supported data types)
+      AssumeRolePolicyDocument:
+        # The Version policy element specifies the language syntax rules that are to be used to process a policy
+        Version: 2012-10-17
+        # The Statement element is the main element for a policy, [{...},{...},{...}]
+        Statement:
+            # The Effect element is required and specifies whether the statement results in an allow or an explicit deny
+            # Allowed values Allow | Deny
+          - Effect: Allow
+            # IAM JSON policy elements, Action, describes the specific action or actions that will be allowed or denied. 
+            # Statements must include either an Action or NotAction element. 
+            # Each AWS service has its own set of actions that describe tasks that you can perform with that service.
+            # "Action": [ "sqs:SendMessage", "sqs:ReceiveMessage", "ec2:StartInstances", "iam:ChangePassword", "s3:GetObject", ... ]
+            Action: "sts:AssumeRole"
+            # Use the Principal element in a resource-based JSON policy to specify the principal that is allowed or denied access to a resource.
+            # You cannot use the Principal element in an identity-based policy. Identity-based policies are permissions policies that you attach 
+            # to IAM identities (users, groups, or roles). In those cases, the principal is implicitly the identity where the policy is attached.
+            Principal:
+              Service: codebuild.amazonaws.com
+      # Adds or updates an inline policy document that is embedded in the specified IAM role.  
+      # Array of Policy, contains information about an attached policy. An attached policy is a managed policy that has been attached to a user, group, or role.
+      # Array of Policy ( PolicyDocument: Json, PolicyName: String)
+      Policies:
+          # The friendly name (not ARN) identifying the policy. [\w+=,.@-]+
+        - PolicyName: CanLog
+          # The entire contents of the policy that defines permissions, json.
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}*:log-stream:*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  # - !GetAtt PipelineS3Bucket.Arn
+                  - !Sub "${PipelineS3Bucket.Arn}/*" 
+        - PolicyName: CanAccessS3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                - !GetAtt PipelineS3Bucket.Arn
+        - PolicyName: CanCreateReports
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:*
+                Resource:
+                  - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/${AWS::StackName}*"
+  
+  AppBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-app-build"
+      Artifacts:
+        Type: CODEPIPELINE
+        EncryptionDisabled: true
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: SAMPLEENVVAR
+            Type: PLAINTEXT
+            Value: test
+        Image: !Ref DockerImage
+        Type: LINUX_CONTAINER
+      ServiceRole: !Ref CodeBuildRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: codebuild-app-build.yml
+
+  AppDeploy:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-app-deploy"
+      Artifacts:
+        Type: CODEPIPELINE
+        EncryptionDisabled: true
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: SAMPLEENVVAR
+            Type: PLAINTEXT
+            Value: test
+        Image: !Ref DockerImage
+        Type: LINUX_CONTAINER
+      ServiceRole: !Ref CodeBuildRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: codebuild-app-deploy.yml
+
+Outputs:
+  CodeCommitName:
+    Description: The code commit repository name
+    Value: !GetAtt CodeCommitRepo.Name
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeCommitName"
+  CodeCommitArn:
+    Description: The code commit repository arn
+    Value: !GetAtt CodeCommitRepo.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeCommitArn"
+  PipelineS3Bucket:
+    Description: The s3 bucket used by the deployment codepipelines
+    Value:
+      Ref: PipelineS3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-PipelineS3Bucket"
+  PipelineS3BucketArn:
+    Description: The s3 bucket used by the deployment codepipelines
+    Value: !GetAtt PipelineS3Bucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PipelineS3BucketArn"
+  CodeBuildRole:
+    Description: IAM Role ARN associated with CodeBuild projects
+    Value:
+      Ref: CodeBuildRole
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeBuildRole"
+  CodeBuildRoleArn:
+    Description: IAM Role ARN associated with CodeBuild projects
+    Value: !GetAtt CodeBuildRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeBuildRoleArn"
+
+  AppDeploy:
+    Value:
+      Ref: AppDeploy
+    Export:
+      Name: !Sub "${AWS::StackName}-AppDeploy"
+  AppDeploydArn:
+    Value: !GetAtt AppDeploy.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AppDeployArn"
+
+  AppBuild:
+    Value:
+      Ref: AppBuild
+    Export:
+      Name: !Sub "${AWS::StackName}-AppBuild"
+  AppBuildArn:
+    Value: !GetAtt AppBuild.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AppBuildArn"

@@ -1,0 +1,32 @@
+AWSTemplateFormVersion (opt): "2010-09-09"
+
+Description (opt):
+  String
+
+Parameters (opt):
+  set of Parameters
+
+Mapping (opt):
+  set of mappings
+
+Conditions (opt):
+  set of Conditions
+
+Transform (opt):
+  set of transforms
+
+Resources (req):
+  set of Resources
+
+Outputs (opt):
+  set of outputs
+
+2) Parameter Validation
+3) Stack Architecture (layered, nested, layering w/ nested, microservice stacksets,)
+4) custome Resources
+5) create template > save template in local/S3 > create stack
+6) Testing Template (aws taskcat, cfn-lint, validate-template)
+
+Added tags to settings.json see https://github.com/redhat-developer/vscode-yaml/issues/669
+NGPMDonDocker | NGPMDonEC2
+MultitenantDjangoNginxGunicornPostgres

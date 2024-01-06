@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A Free EC2 instance Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build on 2023-09-19
+Resources:
+  MYEC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-0fc5d935ebf8bc3bc
+      InstanceType: t2.micro
+You can actually pass a file path to Cloudformation deploy --parameter-overrides. The below syntax worked for me:
+
+aws cloudformation deploy \
+  --template-file template.yml \
+  --stack-name my-stack \
+  --parameter-overrides file://path/to_parameter_file.json
+
+  

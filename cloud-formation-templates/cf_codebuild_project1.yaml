@@ -1,11 +1,12 @@
-# This example deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
+# Source: https://github.com/awslabs/aws-cloudformation-templates/tree/master/aws/solutions/CodeBuildAndCodePipeline
+# Project1 deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
 # which uses continuous integration to run any time changes are pushed to the code commit repository.
 # The templates can be expanded to create multiple CodeBuild jobs or add additional environments to the CodePipeline stages.
-# This example contains two CloudFormation templates (cf_codebuild_3stg.yml, cf_codepipeline_3stg.yaml)
+# This example contains two CloudFormation templates (cf_codebuild_example1.yml, cf_codepipeline_example1.yaml)
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  This template must be deployed first as the cf_codepipeline_3stg.yaml has dependencies on the output of this template. 
+  This template must be deployed first as the cf_codepipeline_project1.yaml has dependencies on the output of this template. 
   This template deploys the following resources
     An S3 storage account for holding build artifacts
     App-build CodeBuild project for running scripts and commands to build the application
@@ -108,7 +109,7 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/${AWS::StackName}*"
   
-  AppBuild:
+  Project1Build:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Sub "${AWS::StackName}-app-build"
@@ -128,7 +129,7 @@ Resources:
         Type: CODEPIPELINE
         BuildSpec: codebuild-app-build.yml
 
-  AppDeploy:
+  Project1Deploy:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Sub "${AWS::StackName}-app-deploy"

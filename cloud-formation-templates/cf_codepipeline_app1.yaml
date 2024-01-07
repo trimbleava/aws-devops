@@ -1,8 +1,8 @@
 # Source: https://github.com/awslabs/aws-cloudformation-templates/tree/master/aws/solutions/CodeBuildAndCodePipeline
-# Example1 deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
+# App1 deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
 # which uses continuous integration to run any time changes are pushed to the code commit repository.
 # The templates can be expanded to create multiple CodeBuild jobs or add additional environments to the CodePipeline stages.
-# This example contains two CloudFormation templates (cf_codebuild_example1.yml, cf_codepipeline_example1.yaml)
+# This project contains two CloudFormation templates (cf_codebuild_app1.yml, cf_codepipeline_app1.yaml)
 
 AWSTemplateFormatVersion: 2010-09-09
 

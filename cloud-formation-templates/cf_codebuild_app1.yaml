@@ -1,16 +1,16 @@
 # Source: https://github.com/awslabs/aws-cloudformation-templates/tree/master/aws/solutions/CodeBuildAndCodePipeline
-# Project1 deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
+# App1 deploys a CodeCommit Repository, two CodeBuild jobs, and then creates a CodePipeline 
 # which uses continuous integration to run any time changes are pushed to the code commit repository.
 # The templates can be expanded to create multiple CodeBuild jobs or add additional environments to the CodePipeline stages.
-# This example contains two CloudFormation templates (cf_codebuild_example1.yml, cf_codepipeline_example1.yaml)
+# This project contains two CloudFormation templates (cf_codebuild_app1.yml, cf_codepipeline_app1.yaml)
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  This template must be deployed first as the cf_codepipeline_project1.yaml has dependencies on the output of this template. 
+  This template must be deployed first as the cf_codepipeline_app1.yaml has dependencies on the output of this template. 
   This template deploys the following resources
     An S3 storage account for holding build artifacts
-    App-build CodeBuild project for running scripts and commands to build the application
-    App-deploy CodeBuild Project for running scripts and commands to deploy the application
+    app1-build CodeBuild Project for running scripts and commands to build the application
+    app1-deploy CodeBuild Project for running scripts and commands to deploy the application
     Required IAM roles for the codebuild to create logs in cloudwatch and s3, create objects in s3, and create reports
 
 Parameters:
@@ -109,10 +109,10 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/${AWS::StackName}*"
   
-  Project1Build:
+  App1Build:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Sub "${AWS::StackName}-app-build"
+      Name: !Sub "${AWS::StackName}-app1-build"
       Artifacts:
         Type: CODEPIPELINE
         EncryptionDisabled: true
@@ -127,12 +127,12 @@ Resources:
       ServiceRole: !Ref CodeBuildRole
       Source:
         Type: CODEPIPELINE
-        BuildSpec: codebuild-app-build.yml
+        BuildSpec: codebuild-app1-build.yml
 
   Project1Deploy:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Sub "${AWS::StackName}-app-deploy"
+      Name: !Sub "${AWS::StackName}-app1-deploy"
       Artifacts:
         Type: CODEPIPELINE
         EncryptionDisabled: true
@@ -147,7 +147,7 @@ Resources:
       ServiceRole: !Ref CodeBuildRole
       Source:
         Type: CODEPIPELINE
-        BuildSpec: codebuild-app-deploy.yml
+        BuildSpec: codebuild-app1-deploy.yml
 
 Outputs:
   CodeCommitName:
@@ -183,22 +183,22 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-CodeBuildRoleArn"
 
-  AppDeploy:
+  App1Deploy:
     Value:
-      Ref: AppDeploy
+      Ref: App1Deploy
     Export:
-      Name: !Sub "${AWS::StackName}-AppDeploy"
-  AppDeploydArn:
-    Value: !GetAtt AppDeploy.Arn
+      Name: !Sub "${AWS::StackName}-App1Deploy"
+  App1DeploydArn:
+    Value: !GetAtt App1Deploy.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-AppDeployArn"
+      Name: !Sub "${AWS::StackName}-App1DeployArn"
 
-  AppBuild:
+  App1Build:
     Value:
-      Ref: AppBuild
+      Ref: App1Build
     Export:
-      Name: !Sub "${AWS::StackName}-AppBuild"
-  AppBuildArn:
-    Value: !GetAtt AppBuild.Arn
+      Name: !Sub "${AWS::StackName}-App1Build"
+  App1BuildArn:
+    Value: !GetAtt App1Build.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-AppBuildArn"
+      Name: !Sub "${AWS::StackName}-App1BuildArn"
